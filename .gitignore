@@ -6,4 +6,7 @@ boxing-env/
 venv/
 env/
 __pycache__/
-*.pyc
+*.pyc/Driver_drowsiness_and_distraction_detection/
+/IndiaLENS/
+/ChurnShield_AI/
+/Revive/
