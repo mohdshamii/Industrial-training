@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — {{ title }} | EstateIQ AI{% endblock %}
+{% block header_title %}System Status {{ code }}{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:560px;margin:60px auto;text-align:center;padding:40px 28px;">
+  <div class="badge badge-rose mono" style="font-size:0.9rem;margin-bottom:14px;">HTTP {{ code }}</div>
+  <h1 style="margin:0 0 10px;font-size:1.6rem;">{{ title }}</h1>
+  <p style="color:var(--text-secondary);margin-bottom:24px;">{{ message }}</p>
+  <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">Return to Overview</a>
+</div>
+{% endblock %}

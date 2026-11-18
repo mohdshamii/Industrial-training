@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Profile & Settings — EstateIQ AI{% endblock %}
+{% block header_title %}Profile &amp; Account Settings{% endblock %}
+
+{% block content %}
+<div class="grid grid-2">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Personal Preferences</h2>
+        <p class="card-subtitle">Manage your identity, currency display, and default map location.</p>
+      </div>
+      <span class="badge badge-emerald">{{ current_user.role|upper }}</span>
+    </div>
+    <form method="POST" action="{{ url_for('auth.profile') }}" style="display:flex;flex-direction:column;gap:14px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="action" value="update_profile" />
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="full_name" class="form-control" value="{{ current_user.full_name }}" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-control" value="{{ current_user.email }}" disabled />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Default Target City</label>
+        <input type="text" name="default_city" class="form-control" value="{{ current_user.default_city or '' }}" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Preferred Currency</label>
+        <select name="preferred_currency" class="form-select">
+          <option value="INR" {% if current_user.preferred_currency == 'INR' %}selected{% endif %}>INR (Indian Rupee)</option>
+          <option value="USD" {% if current_user.preferred_currency == 'USD' %}selected{% endif %}>USD (US Dollar)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary">Save Preferences</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Security &amp; Password</h2>
+        <p class="card-subtitle">Passwords are protected with salted cryptographic hashing.</p>
+      </div>
+    </div>
+    <form method="POST" action="{{ url_for('auth.profile') }}" style="display:flex;flex-direction:column;gap:14px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <input type="hidden" name="action" value="change_password" />
+      <div class="form-group">
+        <label class="form-label">Current Password</label>
+        <input type="password" name="current_password" class="form-control" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">New Password (min 8 characters)</label>
+        <input type="password" name="new_password" class="form-control" required minlength="8" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Confirm New Password</label>
+        <input type="password" name="confirm_password" class="form-control" required minlength="8" />
+      </div>
+      <button type="submit" class="btn btn-secondary">Update Password</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

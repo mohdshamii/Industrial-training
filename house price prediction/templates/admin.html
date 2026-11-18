@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Admin Intelligence Console — EstateIQ AI{% endblock %}
+{% block header_title %}Admin Operations &amp; Telemetry Console{% endblock %}
+
+{% block content %}
+<!-- Top KPI Strip -->
+<section class="grid grid-4" style="margin-bottom:22px;">
+  <div class="kpi-card">
+    <div class="kpi-label">Total Registered Users</div>
+    <div class="kpi-value mono">{{ stats.totals.users }}</div>
+    <div class="kpi-meta">Role-based access enabled</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Total ML Predictions</div>
+    <div class="kpi-value mono" style="color:var(--accent-emerald);">{{ stats.totals.predictions }}</div>
+    <div class="kpi-meta">Served via preserved .pkl</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Saved Portfolio Items</div>
+    <div class="kpi-value mono">{{ stats.totals.saved_properties }}</div>
+    <div class="kpi-meta">{{ stats.totals.favorite_locations }} bookmarked locations</div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Tracked API Events</div>
+    <div class="kpi-value mono" style="color:var(--accent-indigo);">{{ stats.totals.api_calls }}</div>
+    <div class="kpi-meta">{{ stats.health.cache_entries }} active cache entries</div>
+  </div>
+</section>
+
+<!-- System Health Panel -->
+<div class="card" style="margin-bottom:22px;">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">System Health &amp; Cache Operations</h2>
+      <p class="card-subtitle">Live runtime status of preserved ML artifacts, database, AI engine, and external API cache.</p>
+    </div>
+    <button type="button" id="clearCacheBtn" class="btn btn-secondary btn-sm">Clear API Cache</button>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:12px;">
+    <span class="badge {% if stats.health.ml_model_loaded %}badge-emerald{% else %}badge-rose{% endif %}">ML Model: {{ 'Healthy' if stats.health.ml_model_loaded else 'Error' }}</span>
+    <span class="badge {% if stats.health.encoder_loaded %}badge-emerald{% else %}badge-rose{% endif %}">OneHotEncoder: {{ 'Healthy' if stats.health.encoder_loaded else 'Error' }}</span>
+    <span class="badge badge-emerald">Database: Connected</span>
+    <span class="badge badge-indigo">AI Provider: {{ stats.health.ai_provider }}</span>
+    <span class="badge badge-amber mono">Verified MAPE: {{ stats.health.validation_mape_pct }}%</span>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-2" style="margin-bottom:22px;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">14-Day Prediction Activity</h3></div>
+    <div class="chart-box"><canvas id="adminActivityChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Popular Property Types</h3></div>
+    <div class="chart-box"><canvas id="adminTypeChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Most Searched Locations & API Usage Telemetry -->
+<div class="grid grid-2" style="margin-bottom:22px;">
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">Most Searched Locations</h3></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Location</th><th>Valuations</th></tr></thead>
+        <tbody>
+          {% if stats.top_locations %}
+            {% for row in stats.top_locations %}
+              <tr><td>{{ row.location }}</td><td class="mono">{{ row.count }}</td></tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="2" style="color:var(--text-muted);text-align:center;">No location-tagged predictions yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h3 class="card-title">API Usage Monitoring</h3></div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Service</th><th>Total Calls</th><th>Avg Latency</th></tr></thead>
+        <tbody>
+          {% if stats.api_usage %}
+            {% for row in stats.api_usage %}
+              <tr><td class="mono">{{ row.service }}</td><td class="mono">{{ row.calls }}</td><td class="mono">{{ row.avg_latency_ms }} ms</td></tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="3" style="color:var(--text-muted);text-align:center;">No API calls logged yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- User Role Management -->
+<div class="card">
+  <div class="card-header"><h3 class="card-title">Registered Accounts &amp; RBAC Roles</h3></div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for u in stats.users %}
+        <tr>
+          <td style="font-weight:600;">{{ u.full_name }}</td>
+          <td class="mono" style="font-size:0.8rem;">{{ u.email }}</td>
+          <td><span class="badge {% if u.role == 'admin' %}badge-indigo{% else %}badge-muted{% endif %} role-pill-{{ u.id }}">{{ u.role }}</span></td>
+          <td class="mono" style="font-size:0.78rem;color:var(--text-muted);">{{ (u.created_at or '')[:10] }}</td>
+          <td>
+            {% if u.id != current_user.id %}
+              <button type="button" class="btn btn-secondary btn-sm toggle-role-btn" data-id="{{ u.id }}" data-next="{{ 'user' if u.role == 'admin' else 'admin' }}">
+                Make {{ 'User' if u.role == 'admin' else 'Admin' }}
+              </button>
+            {% else %}
+              <span style="font-size:0.75rem;color:var(--text-muted);">Current Session</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script id="adminStatsData" type="application/json">{{ stats | tojson }}</script>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const stats = JSON.parse(document.getElementById("adminStatsData").textContent || "{}");
+  const c = EstateIQ.getChartColors();
+
+  new Chart(document.getElementById("adminActivityChart").getContext("2d"), {
+    type: "line",
+    data: {
+      labels: (stats.activity_series || []).map((x) => x.date.slice(5)),
+      datasets: [{ label: "Predictions", data: (stats.activity_series || []).map((x) => x.count), borderColor: "#f4b8d0", backgroundColor: "rgba(244,184,208,0.18)", fill: true, tension: 0.3 }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { grid: { display: false }, ticks: { color: c.text } }, y: { beginAtZero: true, grid: { color: c.grid }, ticks: { color: c.text, precision: 0 } } },
+    },
+  });
+
+  const types = stats.popular_property_types || [];
+  new Chart(document.getElementById("adminTypeChart").getContext("2d"), {
+    type: "doughnut",
+    data: {
+      labels: types.length ? types.map((t) => t.bldg_type) : ["No predictions yet"],
+      datasets: [{ data: types.length ? types.map((t) => t.count) : [1], backgroundColor: ["#2563eb", "#f4b8d0", "#60a5fa", "#d46b99", c.monoContrast], borderWidth: 0 }],
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: c.text } } } },
+  });
+
+  document.getElementById("clearCacheBtn").addEventListener("click", async () => {
+    try {
+      const r = await EstateIQ.apiFetch("/api/admin/cache/clear", { method: "POST" });
+      EstateIQ.showToast(`Cleared ${r.entries_removed} cached API entries.`, "success");
+    } catch (err) { EstateIQ.showToast(err.message, "error"); }
+  });
+
+  document.querySelectorAll(".toggle-role-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        const res = await EstateIQ.apiFetch(`/api/admin/users/${btn.dataset.id}/role`, {
+          method: "POST",
+          body: JSON.stringify({ role: btn.dataset.next }),
+        });
+        const newRole = res.user.role;
+        const pill = document.querySelector(`.role-pill-${btn.dataset.id}`);
+        pill.textContent = newRole;
+        pill.className = `badge ${newRole === "admin" ? "badge-indigo" : "badge-muted"} role-pill-${btn.dataset.id}`;
+        btn.dataset.next = newRole === "admin" ? "user" : "admin";
+        btn.textContent = `Make ${newRole === "admin" ? "User" : "Admin"}`;
+        EstateIQ.showToast(`Updated user role to ${newRole}.`, "success");
+      } catch (err) { EstateIQ.showToast(err.message, "error"); }
+    });
+  });
+})();
+</script>
+{% endblock %}

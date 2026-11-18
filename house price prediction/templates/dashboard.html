@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% block title %}Executive Command Dashboard — EstateIQ AI{% endblock %}
+{% block header_title %}My Portfolio Dashboard{% endblock %}
+
+{% block content %}
+<!-- Executive Portfolio Command Header -->
+<section class="card dashboard-hero reveal visible" style="margin-bottom:24px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px;">
+    <div>
+      <span class="badge badge-gold" style="margin-bottom:10px;">
+        <span class="status-dot"></span>
+        {{ current_user.role|upper }} COMMAND WORKSPACE
+      </span>
+      <h1 style="margin:0 0 6px;font-size:clamp(1.45rem,2.4vw,2rem);font-weight:800;letter-spacing:-0.03em;">
+        Welcome back, <span class="gradient-text">{{ current_user.full_name }}</span>
+      </h1>
+      <p style="margin:0;font-size:0.86rem;color:var(--text-secondary);">
+        Primary Market: <strong>{{ current_user.default_city or 'Global' }}</strong> &middot;
+        Currency: <strong class="mono">{{ current_user.preferred_currency }}</strong> &middot;
+        Live FX: <strong class="mono">1 USD = {{ "%.2f"|format(fx.rate) }} INR</strong>
+      </p>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:9px;">
+      <a href="{{ url_for('prediction.predict_page') }}" class="btn btn-primary btn-sm">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New Valuation
+      </a>
+      <a href="{{ url_for('properties.compare_page') }}" class="btn btn-secondary btn-sm">Compare Properties</a>
+      <a href="{{ url_for('properties.map_page') }}" class="btn btn-secondary btn-sm">Scan Map</a>
+      <a href="{{ url_for('chatbot.assistant_page') }}" class="btn btn-gold btn-sm">Ask AI Advisor</a>
+      <a href="{{ url_for('auth.profile') }}" class="btn btn-secondary btn-sm">Settings</a>
+    </div>
+  </div>
+</section>
+
+<!-- Animated Executive KPI Strip -->
+<section class="grid grid-4 reveal visible" style="margin-bottom:24px;">
+  <div class="kpi-card lift-card">
+    <div class="kpi-top"><span class="kpi-label">Total Valuations</span><span class="kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg></span></div>
+    <div class="kpi-value mono"><span data-countup="{{ predictions|length }}">{{ predictions|length }}</span></div>
+    <div class="kpi-meta">Historical ML price runs</div>
+  </div>
+  <div class="kpi-card lift-card">
+    <div class="kpi-top"><span class="kpi-label">Saved Portfolio</span><span class="kpi-icon indigo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg></span></div>
+    <div class="kpi-value mono"><span data-countup="{{ saved_properties|length }}">{{ saved_properties|length }}</span></div>
+    <div class="kpi-meta">Shortlisted properties</div>
+  </div>
+  <div class="kpi-card lift-card">
+    <div class="kpi-top"><span class="kpi-label">Bookmarked Areas</span><span class="kpi-icon amber"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg></span></div>
+    <div class="kpi-value mono"><span data-countup="{{ favorite_locations|length }}">{{ favorite_locations|length }}</span></div>
+    <div class="kpi-meta">Saved neighborhood radars</div>
+  </div>
+  <div class="kpi-card lift-card">
+    <div class="kpi-top"><span class="kpi-label">Average Valuation</span><span class="kpi-icon indigo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline></svg></span></div>
+    <div class="kpi-value mono" style="color:var(--color-gold);">{{ format_inr(avg_val_inr) }}</div>
+    <div class="kpi-meta">Across your ML history</div>
+  </div>
+</section>
+
+<!-- Live Portfolio Trajectory & Composition Analytics -->
+<section class="grid grid-sidebar-split reveal" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Valuation Trajectory (INR)</h2>
+        <p class="card-subtitle">Interactive progression of your recent ML property valuations.</p>
+      </div>
+      <span class="badge badge-gold mono">Live Portfolio</span>
+    </div>
+    {% if predictions %}
+      <div class="chart-box" style="height:260px;"><canvas id="dashTrendChart"></canvas></div>
+    {% else %}
+      <div style="text-align:center;padding:56px 16px;">
+        <p style="color:var(--text-secondary);margin-bottom:16px;">Run your first valuation to unlock live portfolio trajectory analytics.</p>
+        <a href="{{ url_for('prediction.predict_page') }}" class="btn btn-primary btn-sm">Launch Valuation Studio</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Portfolio Building-Type Mix</h2>
+        <p class="card-subtitle">Distribution of evaluated properties by structural classification.</p>
+      </div>
+      <span class="badge badge-blue">Analytics</span>
+    </div>
+    {% if predictions %}
+      <div class="chart-box" style="height:260px;"><canvas id="dashMixChart"></canvas></div>
+    {% else %}
+      <div style="display:flex;flex-direction:column;gap:10px;padding:12px 0;">
+        <a href="{{ url_for('prediction.predict_page') }}" class="amenity-item"><span><strong>01.</strong> Run AI Property Valuation</span><span class="badge badge-gold">Start</span></a>
+        <a href="{{ url_for('properties.compare_page') }}" class="amenity-item"><span><strong>02.</strong> Compare up to 4 Properties</span><span class="badge badge-blue">Open</span></a>
+        <a href="{{ url_for('properties.map_page') }}" class="amenity-item"><span><strong>03.</strong> Scan Neighborhood Amenities</span><span class="badge badge-blue">Explore</span></a>
+        <a href="{{ url_for('analytics.analytics_page') }}" class="amenity-item"><span><strong>04.</strong> Simulate EMI &amp; Buy vs. Rent</span><span class="badge badge-gold">Model</span></a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Saved Properties + Bookmarked Locations -->
+<section class="grid grid-2 reveal" style="margin-bottom:24px;">
+  <div class="card">
+    <div class="card-header">
+      <div><h2 class="card-title">Shortlisted Properties</h2><p class="card-subtitle">Your saved portfolio assets with instant PDF dossier export.</p></div>
+      <a href="{{ url_for('properties.compare_page') }}" class="btn btn-secondary btn-sm">Compare All</a>
+    </div>
+    {% if saved_properties %}
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        {% for prop in saved_properties %}
+        <div class="saved-prop-card" data-id="{{ prop.id }}" style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:14px;padding:15px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <div style="font-weight:700;font-size:0.94rem;">{{ prop.title }}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">{{ prop.location_name or prop.ms_zoning }} &middot; Built {{ prop.year_built }} &middot; Lot {{ "{:,.0f}".format(prop.lot_area or 0) }} sq ft</div>
+            <div class="mono" style="font-weight:800;color:var(--color-gold);font-size:1.05rem;margin-top:6px;">{{ format_inr(prop.predicted_price_inr) }}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;">
+            {% if prop.prediction_id %}
+              <a href="/api/predictions/{{ prop.prediction_id }}/report.pdf" class="btn btn-primary btn-sm">PDF</a>
+            {% endif %}
+            <button type="button" class="btn btn-danger btn-sm del-saved-prop" data-id="{{ prop.id }}">Remove</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color:var(--text-muted);font-size:0.85rem;">No properties saved yet. Run a valuation and click <strong>Save to Portfolio</strong>.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div><h2 class="card-title">Bookmarked Locations</h2><p class="card-subtitle">Jump straight into live OpenStreetMap infrastructure scans.</p></div>
+      <a href="{{ url_for('properties.map_page') }}" class="btn btn-secondary btn-sm">Open Radar Map</a>
+    </div>
+    {% if favorite_locations %}
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        {% for loc in favorite_locations %}
+        <div class="fav-loc-card" data-id="{{ loc.id }}" style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:14px;padding:15px;display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <div style="font-weight:700;font-size:0.94rem;">{{ loc.location_name }}</div>
+            <div class="mono" style="font-size:0.75rem;color:var(--color-blue-bright);margin-top:2px;">{{ "%.4f"|format(loc.latitude) }}, {{ "%.4f"|format(loc.longitude) }}</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <a href="{{ url_for('properties.map_page') }}?lat={{ loc.latitude }}&lon={{ loc.longitude }}&name={{ loc.location_name|urlencode }}" class="btn btn-primary btn-sm">Inspect</a>
+            <button type="button" class="btn btn-danger btn-sm del-fav-loc" data-id="{{ loc.id }}">Remove</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color:var(--text-muted);font-size:0.85rem;">No neighborhoods bookmarked yet. Visit <strong>Map</strong> to bookmark locations.</p>
+    {% endif %}
+  </div>
+</section>
+
+<!-- Complete Valuation Ledger -->
+<section class="card reveal">
+  <div class="card-header">
+    <div><h2 class="card-title">Executive Valuation Ledger</h2><p class="card-subtitle">Full audit trail of your ML valuations and downloadable PDF reports.</p></div>
+    <span class="badge badge-muted mono">{{ predictions|length }} Entries</span>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Property Title</th>
+          <th>Type / Zoning</th>
+          <th>Estimated Value (INR)</th>
+          <th>10-Tree Spread</th>
+          <th>Timestamp (UTC)</th>
+          <th>Dossier</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if predictions %}
+          {% for p in predictions %}
+          <tr>
+            <td>
+              <div style="font-weight:700;">{{ p.property_title }}</div>
+              <div style="font-size:0.74rem;color:var(--text-muted);">{{ p.location_name or 'No location tagged' }}</div>
+            </td>
+            <td><span class="badge badge-blue">{{ p.bldg_type }}</span> <span class="badge badge-muted">{{ p.ms_zoning }}</span></td>
+            <td class="mono" style="font-weight:800;color:var(--color-gold);">{{ format_inr(p.predicted_price_inr) }}</td>
+            <td class="mono" style="font-size:0.78rem;">{{ format_inr(p.ensemble_min_usd * p.exchange_rate_used) }} - {{ format_inr(p.ensemble_max_usd * p.exchange_rate_used) }}</td>
+            <td class="mono" style="font-size:0.78rem;color:var(--text-muted);">{{ p.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td><a href="/api/predictions/{{ p.id }}/report.pdf" class="btn btn-secondary btn-sm">Download PDF</a></td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:28px;">No valuations yet. <a href="{{ url_for('prediction.predict_page') }}" style="color:var(--color-gold);font-weight:700;">Run your first valuation now</a>.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const preds = [
+    {% for p in predictions | reverse %}
+    { title: {{ p.property_title | tojson }}, inr: {{ p.predicted_price_inr | round(0) }}, bldg: {{ (p.bldg_type or '1Fam') | tojson }} }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  if (preds.length && document.getElementById("dashTrendChart")) {
+    const c = EstateIQ.getChartColors();
+    new Chart(document.getElementById("dashTrendChart").getContext("2d"), {
+      type: "line",
+      data: {
+        labels: preds.map((p, i) => p.title.length > 16 ? p.title.slice(0, 14) + ".." : p.title),
+        datasets: [{
+          label: "Valuation (INR)",
+          data: preds.map((p) => p.inr),
+          borderColor: "#f4b8d0",
+          backgroundColor: "rgba(37,99,235,0.18)",
+          pointBackgroundColor: "#2563eb",
+          pointBorderColor: "#f4b8d0",
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          fill: true,
+          tension: 0.35,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.text, font: { size: 11 } } },
+          y: { grid: { color: c.grid }, ticks: { color: c.text, callback: (v) => EstateIQ.formatINR(v, true) } },
+        },
+      },
+    });
+
+    const counts = {};
+    preds.forEach((p) => { counts[p.bldg] = (counts[p.bldg] || 0) + 1; });
+    new Chart(document.getElementById("dashMixChart").getContext("2d"), {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(counts),
+        datasets: [{ data: Object.values(counts), backgroundColor: ["#2563eb", "#f4b8d0", "#60a5fa", "#d46b99", c.monoContrast], borderWidth: 0 }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "66%",
+        plugins: { legend: { position: "bottom", labels: { color: c.text } } },
+      },
+    });
+  }
+
+  document.querySelectorAll(".del-saved-prop").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await EstateIQ.apiFetch(`/api/properties/saved/${btn.dataset.id}`, { method: "DELETE" });
+        btn.closest(".saved-prop-card").remove();
+        EstateIQ.showToast("Removed saved property.", "info");
+      } catch (err) { EstateIQ.showToast(err.message, "error"); }
+    });
+  });
+
+  document.querySelectorAll(".del-fav-loc").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await EstateIQ.apiFetch(`/api/locations/favorite/${btn.dataset.id}`, { method: "DELETE" });
+        btn.closest(".fav-loc-card").remove();
+        EstateIQ.showToast("Removed favorite location.", "info");
+      } catch (err) { EstateIQ.showToast(err.message, "error"); }
+    });
+  });
+})();
+</script>
+{% endblock %}
