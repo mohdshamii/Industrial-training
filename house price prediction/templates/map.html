@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Location Intelligence Map — EstateIQ AI{% endblock %}
+{% block header_title %}Location Intelligence &amp; Amenity Radar{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
+
+{% block content %}
+<!-- Search & Controls Bar -->
+<div class="card" style="margin-bottom:20px;">
+  <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+    <div style="flex:1;min-width:240px;position:relative;">
+      <input id="mapSearchInput" type="text" class="form-control" placeholder="Search any city, neighborhood, or landmark (e.g. Indiranagar, Bengaluru)" />
+      <div id="mapSearchResults" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:60;background:var(--bg-surface);border:1px solid var(--border-strong);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-md);"></div>
+    </div>
+    <select id="mapRadiusSelect" class="form-select" style="width:155px;">
+      <option value="1500">Radius: 1.5 km</option>
+      <option value="3000" selected>Radius: 3.0 km</option>
+      <option value="5000">Radius: 5.0 km</option>
+    </select>
+    <button type="button" id="mapSearchBtn" class="btn btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      Analyze Area
+    </button>
+    <button type="button" id="setCompareLocBtn" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"></path><path d="M8 21H3v-5"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+      Pin for Location Compare
+    </button>
+    {% if current_user.is_authenticated %}
+    <button type="button" id="saveFavLocBtn" class="btn btn-secondary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+      Bookmark Location
+    </button>
+    {% endif %}
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center;">
+    <span style="font-size:0.75rem;color:var(--text-muted);font-weight:600;">Quick Explore:</span>
+    <button type="button" class="chip-btn quick-city-btn" data-q="Indiranagar, Bengaluru, India">Bengaluru (Indiranagar)</button>
+    <button type="button" class="chip-btn quick-city-btn" data-q="Bandra West, Mumbai, India">Mumbai (Bandra West)</button>
+    <button type="button" class="chip-btn quick-city-btn" data-q="Cyber City, Gurugram, India">Gurugram (Cyber City)</button>
+    <button type="button" class="chip-btn quick-city-btn" data-q="Banjara Hills, Hyderabad, India">Hyderabad (Banjara Hills)</button>
+    <button type="button" class="chip-btn quick-city-btn" data-q="Koregaon Park, Pune, India">Pune (Koregaon Park)</button>
+  </div>
+</div>
+
+<!-- Map + Live Telemetry Split -->
+<div class="grid grid-map-split" style="align-items:start;">
+  <div class="card" style="padding:14px;">
+    <div id="estateMap"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px;font-size:0.76rem;color:var(--text-muted);">
+      <span id="selectedLocLabel">Click anywhere on the map or search an area to scan real OpenStreetMap POIs.</span>
+      <span id="selectedCoordsLabel" class="mono">12.9716, 77.5946</span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:18px;">
+    <!-- Connectivity & Weather Summary -->
+    <div class="card">
+      <div class="card-header" style="margin-bottom:12px;">
+        <div>
+          <h3 class="card-title">Area Intelligence Snapshot</h3>
+          <p class="card-subtitle" id="areaSourceLabel">OpenStreetMap Overpass + Open-Meteo Live</p>
+        </div>
+        <span id="connectivityBadge" class="badge badge-emerald mono">Score: --</span>
+      </div>
+
+      <div id="weatherPanel" style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:12px;padding:13px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="kpi-label">Live Local Weather</div>
+            <div id="weatherMain" style="font-size:1.25rem;font-weight:700;margin-top:3px;">Loading...</div>
+          </div>
+          <div id="weatherDetails" style="text-align:right;font-size:0.78rem;color:var(--text-secondary);"></div>
+        </div>
+        <div id="weatherForecastRow" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;"></div>
+      </div>
+
+      <!-- 8 Facility Category Counts -->
+      <div id="categoryFilterBar" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;"></div>
+    </div>
+
+    <!-- Nearby Facilities List -->
+    <div class="card">
+      <div class="card-header" style="margin-bottom:10px;">
+        <h3 class="card-title" id="amenityListTitle">Nearest Verified Facilities</h3>
+        <span id="amenityTotalBadge" class="badge badge-muted mono">0 found</span>
+      </div>
+      <div id="amenityListBox" style="max-height:290px;overflow-y:auto;">
+        <div style="color:var(--text-muted);font-size:0.84rem;padding:12px 0;">Select a location to inspect nearby schools, hospitals, transit, malls, restaurants, parks, and airports.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Side-by-Side Location Comparison Panel -->
+<div id="locCompareCard" class="card" style="margin-top:20px;display:none;">
+  <div class="card-header">
+    <div>
+      <h3 class="card-title">Location-to-Location Infrastructure Comparison</h3>
+      <p class="card-subtitle">Comparing pinned areas using real OpenStreetMap Overpass facility counts and distances.</p>
+    </div>
+    <button type="button" id="clearLocCompareBtn" class="btn btn-secondary btn-sm">Clear Comparison</button>
+  </div>
+  <div class="table-wrap">
+    <table class="data-table">
+      <thead><tr id="locCompareHead"></tr></thead>
+      <tbody id="locCompareBody"></tbody>
+    </table>
+  </div>
+</div>
+
+{% if favorite_locations %}
+<div class="card" style="margin-top:20px;">
+  <div class="card-header">
+    <h3 class="card-title">Your Bookmarked Locations</h3>
+  </div>
+  <div class="grid grid-3" style="gap:12px;">
+    {% for loc in favorite_locations %}
+    <div style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:12px;padding:14px;">
+      <div style="font-weight:700;margin-bottom:4px;">{{ loc.location_name }}</div>
+      <div class="mono" style="font-size:0.74rem;color:var(--text-muted);margin-bottom:10px;">{{ "%.4f"|format(loc.latitude) }}, {{ "%.4f"|format(loc.longitude) }}</div>
+      <button type="button" class="btn btn-secondary btn-sm jump-fav-btn" data-lat="{{ loc.latitude }}" data-lon="{{ loc.longitude }}" data-name="{{ loc.location_name }}">Inspect on Map</button>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}?v={{ asset_version }}"></script>
+{% endblock %}

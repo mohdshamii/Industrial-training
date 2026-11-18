@@ -1,269 +1,147 @@
-import streamlit as st
-import pandas as pd
-import pickle
-from PIL import Image
-import numpy as np
+import logging
+import os
+from pathlib import Path
+from flask import Flask, render_template, jsonify, request
+from config import CONFIG_MAP, BASE_DIR
+from database import db, login_manager, csrf, limiter
+from database.models import User
+from services.prediction_service import prediction_service
+from services.market_service import get_usd_to_inr_rate, format_inr
 
-# Set page config for better appearance
-st.set_page_config(
-    page_title="House Price Predictor",
-    page_icon="🏠",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
-# Load saved model, encoder, and feature list
-@st.cache_resource
-def load_artifacts():
-    with open("best_house_price_model.pkl", "rb") as file:
-        model = pickle.load(file)
-    with open("onehot_encoder.pkl", "rb") as file:
-        encoder = pickle.load(file)
-    with open("feature_columns.pkl", "rb") as file:
-        feature_columns = pickle.load(file)
-    return model, encoder, feature_columns
+def create_app(config_name: str = None) -> Flask:
+    env = config_name or os.environ.get("FLASK_ENV", "development")
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+    app.config.from_object(CONFIG_MAP.get(env, CONFIG_MAP["development"]))
 
-model, encoder, feature_columns = load_artifacts()
+    # Ensure instance and reports directories exist
+    (BASE_DIR / "instance").mkdir(parents=True, exist_ok=True)
+    Path(app.config["REPORTS_DIR"]).mkdir(parents=True, exist_ok=True)
 
-# Example categorical options (replace with your actual options)
-CATEGORICAL_OPTIONS = {
-    'MSZoning': ['RL', 'RM', 'C (all)', 'FV', 'RH'],
-    'Street': ['Pave', 'Grvl'],
-    'Neighborhood': ['CollgCr', 'Veenker', 'Crawfor', 'NoRidge', 'Mitchel'],
-    'Exterior1st': ['VinylSd', 'MetalSd', 'Wd Sdng', 'HdBoard', 'BrkFace']
-}
-
-# App header with image and description
-col1, col2 = st.columns([1, 3])
-with col1:
-    st.image("https://cdn.pixabay.com/photo/2016/11/18/17/46/house-1836070_1280.jpg", 
-             width=200, caption="Your Dream Home Awaits")
-with col2:
-    st.title("🏠 Smart Home Price Predictor")
-    st.markdown("""
-    Get an instant estimate of your home's value based on key features. 
-    Fill in the details below and discover what your property is worth!
-    """)
-
-# Create tabs for better organization
-tab1, tab2, tab3 = st.tabs(["📊 Prediction", "📈 Market Trends", "ℹ️ About"])
-
-with tab1:
-    # Create input fields with better organization
-    with st.expander("🏡 Property Details", expanded=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("📍 Location Features")
-            input_data = {}
-            for col in ['MSZoning', 'Neighborhood']:
-                input_data[col] = st.selectbox(
-                    f"{col}",
-                    options=CATEGORICAL_OPTIONS[col],
-                    key=col
-                )
-        
-        with col2:
-            st.subheader("🛠️ Structural Features")
-            input_data['YearBuilt'] = st.slider(
-                "Year Built", 
-                min_value=1800, 
-                max_value=2023, 
-                value=1990,
-                step=1
-            )
-            input_data['OverallQual'] = st.slider(
-                "Overall Quality (1-10)", 
-                min_value=1, 
-                max_value=10, 
-                value=5,
-                step=1
-            )
-            input_data['OverallCond'] = st.slider(
-                "Overall Condition (1-10)", 
-                min_value=1, 
-                max_value=10, 
-                value=5,
-                step=1
-            )
-
-    with st.expander("📐 Size & Area", expanded=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            input_data['LotArea'] = st.number_input(
-                "Lot Area (sq ft)", 
-                min_value=0, 
-                max_value=100000, 
-                value=5000,
-                step=100
-            )
-            input_data['GrLivArea'] = st.number_input(
-                "Living Area (sq ft)", 
-                min_value=0, 
-                max_value=10000, 
-                value=1500,
-                step=100
-            )
-        
-        with col2:
-            input_data['Street'] = st.selectbox(
-                "Street Type",
-                options=CATEGORICAL_OPTIONS['Street'],
-                key="Street"
-            )
-            input_data['Exterior1st'] = st.selectbox(
-                "Exterior Material",
-                options=CATEGORICAL_OPTIONS['Exterior1st'],
-                key="Exterior1st"
-            )
-
-    # Prediction Button with better styling
-    predict_col, _, info_col = st.columns([2, 1, 3])
-    
-    with predict_col:
-        if st.button(
-            "🚀 Predict Price Now", 
-            use_container_width=True,
-            help="Click to estimate your home's value"
-        ):
-            # Convert to DataFrame
-            df_input = pd.DataFrame([input_data])
-
-            # Encode categorical features
-            cat_data = df_input[list(CATEGORICAL_OPTIONS.keys())]
-            encoded_data = pd.DataFrame(
-                encoder.transform(cat_data), 
-                columns=encoder.get_feature_names_out(list(CATEGORICAL_OPTIONS.keys()))
-            )
-
-            # Combine numeric and encoded features
-            numeric_cols = ['LotArea', 'OverallQual', 'OverallCond', 'YearBuilt', 'GrLivArea']
-            numeric_data = df_input[numeric_cols].reset_index(drop=True)
-            final_data = pd.concat([numeric_data, encoded_data], axis=1)
-
-            # Ensure same column order as training
-            for col in feature_columns:
-                if col not in final_data.columns:
-                    final_data[col] = 0
-            final_data = final_data[feature_columns]
-
-            # Predict
-            prediction = model.predict(final_data)[0]
-            
-            # Display result with animation
-            with st.spinner('Calculating your home value...'):
-                st.balloons()
-                st.success(f"""
-                ## 💰 Estimated Value: ${prediction:,.2f}
-                
-                *Based on current market trends and your property features*
-                """)
-                
-                # Show comparison metrics
-                avg_price = 350000  # Replace with your market average
-                diff = prediction - avg_price
-                if diff > 0:
-                    st.info(f"🔺 ${abs(diff):,.2f} above market average")
-                else:
-                    st.warning(f"🔻 ${abs(diff):,.2f} below market average")
-
-    with info_col:
-        st.markdown("""
-        ### 💡 Tips for Accurate Prediction
-        - Measure your living area precisely
-        - Be honest about the property condition
-        - Consider recent renovations
-        - Compare with similar homes in your neighborhood
-        """)
-
-with tab2:
-    st.header("📈 Local Market Trends")
-    
-    # Sample market data visualization (replace with real data)
-    st.subheader("Average Home Prices Last 12 Months")
-    chart_data = pd.DataFrame({
-        'Month': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-        'Price': [320000, 325000, 330000, 335000, 340000, 345000, 350000, 355000, 360000, 365000, 370000, 375000]
-    })
-    st.line_chart(chart_data.set_index('Month'))
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Median Home Price", "$365,000", "+5.8% YoY")
-    with col2:
-        st.metric("Average Days on Market", "28 days", "-12% YoY")
-
-with tab3:
-    st.header("ℹ️ About This App")
-    st.markdown("""
-    ### How It Works
-    This app uses machine learning to estimate home values based on:
-    - Property characteristics
-    - Location features
-    - Current market trends
-    - Historical sales data
-    
-    ### Methodology
-    - Trained on thousands of home sales
-    - Regular model updates for accuracy
-    - 95% prediction accuracy within 10% of actual sale price
-    
-    ### Disclaimer
-    This estimate is for informational purposes only and should not replace 
-    a professional appraisal. Many factors can affect a home's actual market value.
-    """)
-    
-    st.write("")
-    st.write("© 2023 Real Estate Analytics Inc. All rights reserved.")
-
-# Add sidebar with additional options
-with st.sidebar:
-    st.header("⚙️ Settings")
-    st.markdown("Customize your prediction experience")
-    
-    confidence_level = st.slider(
-        "Prediction Confidence Range", 
-        min_value=0, 
-        max_value=20, 
-        value=10,
-        help="Adjust the confidence range for your price estimate"
+    # Configure structured logging
+    logging.basicConfig(
+        level=logging.INFO if not app.config.get("TESTING") else logging.WARNING,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    
-    st.write("")
-    st.markdown("### 📧 Get Updates")
-    email = st.text_input("Enter your email for price alerts")
-    if st.button("Subscribe"):
-        st.success("You'll receive monthly market updates!")
-    
-    st.write("")
-    st.markdown("### 🔍 Need Help?")
-    st.button("Contact Our Agents", help="Connect with a local real estate expert")
 
-# Add some CSS for better styling
-st.markdown("""
-<style>
-    .stButton>button {
-        background-color: #4CAF50;
-        color: white;
-        border-radius: 8px;
-        padding: 10px 24px;
-        transition: all 0.3s;
-    }
-    .stButton>button:hover {
-        background-color: #45a049;
-        transform: scale(1.05);
-    }
-    .stSuccess {
-        border-left: 5px solid #4CAF50;
-        padding: 1rem;
-        background-color: #f8f9fa;
-        border-radius: 8px;
-    }
-    .stExpander {
-        border-radius: 8px;
-        border: 1px solid #e0e0e0;
-        padding: 1rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+    # Initialize extensions
+    db.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = "auth.login"
+    login_manager.login_message_category = "info"
+    csrf.init_app(app)
+    limiter.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(User, int(user_id))
+
+    # Register Blueprints
+    from routes.auth import auth_bp
+    from routes.dashboard import dashboard_bp
+    from routes.prediction import prediction_bp
+    from routes.properties import properties_bp
+    from routes.analytics import analytics_bp
+    from routes.chatbot import chatbot_bp
+    from routes.admin import admin_bp
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(prediction_bp)
+    app.register_blueprint(properties_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(chatbot_bp)
+    app.register_blueprint(admin_bp)
+
+    # Template helpers & global context (with automatic static cache-busting version)
+    @app.context_processor
+    def inject_globals():
+        try:
+            fx = get_usd_to_inr_rate()
+        except Exception:
+            fx = {"rate": app.config.get("DEFAULT_USD_TO_INR", 84.50), "is_live": False, "source": "fallback"}
+        css_path = BASE_DIR / "static" / "css" / "style.css"
+        asset_v = str(int(css_path.stat().st_mtime)) if css_path.exists() else "1"
+        return {
+            "app_name": "EstateIQ AI",
+            "format_inr": format_inr,
+            "global_fx": fx,
+            "asset_version": asset_v,
+        }
+
+    # Security headers
+    @app.after_request
+    def add_security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response
+
+    # Error Handlers
+    @app.errorhandler(403)
+    def forbidden(err):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Access forbidden. Administrator privileges required."}), 403
+        return render_template("error.html", code=403, title="Access Forbidden", message="You do not have permission to view this resource."), 403
+
+    @app.errorhandler(404)
+    def not_found(err):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Requested API endpoint or resource not found."}), 404
+        return render_template("error.html", code=404, title="Page Not Found", message="The requested page could not be located on EstateIQ AI."), 404
+
+    @app.errorhandler(429)
+    def rate_limited(err):
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Rate limit exceeded. Please wait briefly before retrying."}), 429
+        return render_template("error.html", code=429, title="Too Many Requests", message="You have reached the temporary rate limit. Please wait a moment and try again."), 429
+
+    @app.errorhandler(500)
+    def server_error(err):
+        app.logger.exception("Unhandled server error: %s", err)
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Internal server error. Please try again."}), 500
+        return render_template("error.html", code=500, title="Internal Server Error", message="An unexpected error occurred while processing your request."), 500
+
+    # Health endpoint for deployment monitoring
+    @app.route("/health")
+    def health_check():
+        prediction_service.load()
+        return jsonify(
+            {
+                "status": "ok",
+                "service": "EstateIQ AI",
+                "model_loaded": prediction_service._loaded,
+                "n_estimators": prediction_service.validation_metrics.get("n_estimators"),
+            }
+        )
+
+    # Create DB tables & seed initial admin account
+    with app.app_context():
+        db.create_all()
+        _seed_admin(app)
+        prediction_service.load()
+
+    return app
+
+
+def _seed_admin(app: Flask):
+    admin_email = app.config.get("ADMIN_EMAIL", "admin@estateiq.ai").lower()
+    if not User.query.filter_by(email=admin_email).first():
+        admin = User(
+            full_name=app.config.get("ADMIN_NAME", "EstateIQ Administrator"),
+            email=admin_email,
+            role="admin",
+            preferred_currency="INR",
+            default_city="Bengaluru, India",
+        )
+        admin.set_password(app.config.get("ADMIN_PASSWORD", "Admin@EstateIQ2026"))
+        db.session.add(admin)
+        db.session.commit()
+
+
+app = create_app()
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=app.config.get("DEBUG", True))

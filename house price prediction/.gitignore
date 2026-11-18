@@ -1,0 +1,32 @@
+# Python & Virtual Environments
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Database & Generated Runtime Files
+instance/
+*.db
+*.sqlite
+*.sqlite3
+reports/*.pdf
+logs/
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

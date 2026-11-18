@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
+  <title>{% block title %}EstateIQ AI — Smart Real Estate Intelligence{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v={{ asset_version }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  {% block extra_head %}{% endblock %}
+  <script>
+    (function () {
+      var t = localStorage.getItem("estateiq-theme") || "dark";
+      document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
+</head>
+<body>
+  <!-- Ambient Architectural Grid & Soft Blue/Baby-Pink Orbs -->
+  <div class="ambient-canvas" aria-hidden="true">
+    <div class="ambient-grid"></div>
+    <div class="aurora-orb aurora-blue"></div>
+    <div class="aurora-orb aurora-pink"></div>
+  </div>
+
+  <div class="app-shell">
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <!-- Sleek Collapsible Left Sidebar -->
+    <aside id="appSidebar" class="sidebar" aria-label="Sidebar Navigation">
+      <a href="{{ url_for('dashboard.index') }}" class="brand-lockup">
+        <div class="brand-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 10.5 12 3l9 7.5"></path>
+            <path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"></path>
+            <path d="M9 21v-6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v6"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title">EstateIQ <span class="gradient-text">AI</span></div>
+          <div class="brand-sub">Real Estate Intelligence</div>
+        </div>
+      </a>
+
+      <nav class="nav-list">
+        <div class="nav-section-label">Workspace</div>
+        <a href="{{ url_for('dashboard.index') }}" class="nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect></svg>
+          <span>Overview</span>
+        </a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard.user_dashboard') }}" class="nav-item {% if request.endpoint == 'dashboard.user_dashboard' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg>
+          <span>My Dashboard</span>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('prediction.predict_page') }}" class="nav-item {% if request.endpoint == 'prediction.predict_page' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span>AI Price Valuation</span>
+        </a>
+        <a href="{{ url_for('properties.compare_page') }}" class="nav-item {% if request.endpoint == 'properties.compare_page' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"></path><path d="M8 21H3v-5"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg>
+          <span>Property Comparison</span>
+        </a>
+        <a href="{{ url_for('properties.map_page') }}" class="nav-item {% if request.endpoint == 'properties.map_page' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+          <span>Location Map</span>
+        </a>
+
+        <div class="nav-section-label">Advisory &amp; Finance</div>
+        <a href="{{ url_for('analytics.analytics_page') }}" class="nav-item {% if request.endpoint == 'analytics.analytics_page' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+          <span>Investment Analytics</span>
+        </a>
+        <a href="{{ url_for('chatbot.assistant_page') }}" class="nav-item {% if request.endpoint == 'chatbot.assistant_page' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span>AI Advisor Chat</span>
+        </a>
+
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <div class="nav-section-label">Operations</div>
+        <a href="{{ url_for('admin.admin_dashboard') }}" class="nav-item {% if request.endpoint == 'admin.admin_dashboard' %}active{% endif %}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          <span>Admin Console</span>
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="sidebar-footer">
+        {% if current_user.is_authenticated %}
+          <a href="{{ url_for('auth.profile') }}" class="user-pill">
+            <div class="avatar-circle">{{ current_user.full_name[:1].upper() }}</div>
+            <div class="user-meta">
+              <div class="user-meta-name">{{ current_user.full_name }}</div>
+              <div class="user-meta-role">{{ current_user.role }} account</div>
+            </div>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </a>
+          <form method="POST" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <button type="submit" class="btn btn-secondary btn-sm" style="width:100%;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              Sign Out
+            </button>
+          </form>
+        {% else %}
+          <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-sm" style="width:100%;">Sign In</a>
+          <a href="{{ url_for('auth.register') }}" class="btn btn-gold btn-sm" style="width:100%;">Create Free Account</a>
+        {% endif %}
+      </div>
+    </aside>
+
+    <!-- Main Workspace Column -->
+    <div class="main-wrapper">
+      <!-- Executive Top Navbar -->
+      <header class="topbar" role="banner">
+        <div class="topbar-left">
+          <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Toggle Sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <span class="page-breadcrumb">{% block header_title %}EstateIQ AI Platform{% endblock %}</span>
+          <nav class="topbar-nav-pills" aria-label="Quick Navigation">
+            <a href="{{ url_for('prediction.predict_page') }}" class="top-pill-link {% if request.endpoint == 'prediction.predict_page' %}active{% endif %}">Valuation</a>
+            <a href="{{ url_for('properties.compare_page') }}" class="top-pill-link {% if request.endpoint == 'properties.compare_page' %}active{% endif %}">Compare</a>
+            <a href="{{ url_for('properties.map_page') }}" class="top-pill-link {% if request.endpoint == 'properties.map_page' %}active{% endif %}">Map</a>
+            <a href="{{ url_for('analytics.analytics_page') }}" class="top-pill-link {% if request.endpoint == 'analytics.analytics_page' %}active{% endif %}">Analytics</a>
+            <a href="{{ url_for('chatbot.assistant_page') }}" class="top-pill-link {% if request.endpoint == 'chatbot.assistant_page' %}active{% endif %}">AI Advisor</a>
+          </nav>
+        </div>
+
+        <div class="topbar-right">
+          <div class="fx-chip" title="Live Public USD to INR Exchange Rate">
+            <span class="status-dot"></span>
+            <span id="topbarFxText" class="mono">1 USD = {{ "%.2f"|format(global_fx.rate) }} INR{% if not global_fx.is_live %} (Ref){% endif %}</span>
+          </div>
+
+          <button id="themeToggleBtn" class="icon-btn" title="Switch Dark / Light Theme" aria-label="Toggle Theme">
+            <svg id="themeIconSun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+            <svg id="themeIconMoon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+          </button>
+
+          <a href="{{ url_for('prediction.predict_page') }}" class="btn btn-primary btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Valuation
+          </a>
+        </div>
+      </header>
+
+      <main class="page-content fade-in">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category if category in ['success','danger','warning','info'] else 'info' }}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </main>
+
+      <footer class="site-footer">
+        <div class="footer-bottom">
+          <span><strong>EstateIQ AI</strong> &middot; Preserved <code class="mono">best_house_price_model.pkl</code> (10 Trees, 18.50% Audited MAPE)</span>
+          <span class="mono">OpenStreetMap &middot; Overpass &middot; Open-Meteo &middot; Live FX</span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}?v={{ asset_version }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

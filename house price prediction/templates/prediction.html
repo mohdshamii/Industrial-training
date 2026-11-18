@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block title %}AI Price Valuation Studio — EstateIQ AI{% endblock %}
+{% block header_title %}AI House Price Valuation Studio{% endblock %}
+
+{% block content %}
+<div class="grid grid-sidebar-split" style="align-items:start;">
+  <!-- Left Column: Dynamic ML Input Form (Exact 11 Preserved Model Features) -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald)" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"></path></svg>
+          Property Valuation Parameters
+        </h2>
+        <p class="card-subtitle">All 11 native inputs required by <code class="mono">best_house_price_model.pkl</code> &amp; <code class="mono">onehot_encoder.pkl</code>.</p>
+      </div>
+      <span class="badge badge-emerald">37 Encoded Features</span>
+    </div>
+
+    <form id="predictionForm">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label" for="property_title">Property Label (Optional)</label>
+          <input id="property_title" name="property_title" type="text" class="form-control" placeholder="e.g. Indiranagar 2-Story Corner Residence" />
+        </div>
+
+        <!-- Optional Live Location Tagger via Nominatim -->
+        <div class="form-group full">
+          <label class="form-label" for="location_search">
+            <span>Location Tag &amp; Nearby Infrastructure Scan (Optional)</span>
+            <span id="locationTagStatus" class="badge badge-muted" style="display:none;">Tagged</span>
+          </label>
+          <div style="display:flex;gap:8px;">
+            <input id="location_search" name="location_name" type="text" class="form-control" placeholder="Search city or neighborhood (e.g. Koramangala, Bengaluru)" />
+            <button type="button" id="geoLookupBtn" class="btn btn-secondary btn-sm">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              Locate
+            </button>
+          </div>
+          <div id="geoSuggestions" style="display:none;margin-top:6px;border:1px solid var(--border-subtle);border-radius:10px;overflow:hidden;background:var(--bg-surface);"></div>
+          <input type="hidden" id="predLat" name="latitude" />
+          <input type="hidden" id="predLon" name="longitude" />
+          <span class="form-help">Note: Geocoding enriches your PDF dossier &amp; nearby amenities; ML valuation uses the 11 structural &amp; zoning features below.</span>
+        </div>
+
+        <!-- Dynamic Categorical Features from onehot_encoder.pkl -->
+        {% for feat in schema.categorical_features %}
+        <div class="form-group">
+          <label class="form-label" for="inp_{{ feat.name }}">{{ feat.label }}</label>
+          <select id="inp_{{ feat.name }}" name="{{ feat.name }}" class="form-select" required>
+            {% for opt in feat.options %}
+              <option value="{{ opt.value }}" {% if opt.value == feat.default %}selected{% endif %}>{{ opt.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endfor %}
+
+        <!-- Dynamic Numeric Features -->
+        {% for feat in schema.numeric_features %}
+        <div class="form-group {% if feat.name == 'MSSubClass' or feat.name == 'OverallCond' %}full{% endif %}">
+          <label class="form-label" for="inp_{{ feat.name }}">
+            <span>{{ feat.label }}</span>
+            {% if feat.type == 'range' %}
+              <span id="condDisplay" class="badge badge-emerald mono">{{ feat.default }} / 9</span>
+            {% endif %}
+          </label>
+          {% if feat.type == 'select_int' %}
+            <select id="inp_{{ feat.name }}" name="{{ feat.name }}" class="form-select" required>
+              {% for opt in feat.options %}
+                <option value="{{ opt.value }}" {% if opt.value == feat.default %}selected{% endif %}>{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          {% elif feat.type == 'range' %}
+            <input id="inp_{{ feat.name }}" name="{{ feat.name }}" type="range" class="form-range" min="{{ feat.min }}" max="{{ feat.max }}" step="{{ feat.step }}" value="{{ feat.default }}" oninput="document.getElementById('condDisplay').textContent = this.value + ' / 9'" />
+          {% else %}
+            <input id="inp_{{ feat.name }}" name="{{ feat.name }}" type="number" class="form-control mono" min="{{ feat.min }}" max="{{ feat.max }}" step="{{ feat.step }}" value="{{ feat.default }}" required />
+          {% endif %}
+          <span class="form-help">{{ feat.help }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;">
+        <button type="submit" id="predictSubmitBtn" class="btn btn-primary btn-lg" style="flex:1;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          Run AI Valuation
+        </button>
+        <button type="button" id="resetPresetBtn" class="btn btn-secondary">Reset Defaults</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Right Column: Live Prediction Result, 10-Tree Spread & Feature Drivers -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+    <div id="resultCard" class="card">
+      <div id="emptyResultState" style="text-align:center;padding:42px 16px;">
+        <div class="kpi-icon" style="width:52px;height:52px;margin:0 auto 14px;border-radius:14px;">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        </div>
+        <h3 style="margin:0 0 6px;">Ready to Value Your Property</h3>
+        <p style="color:var(--text-secondary);font-size:0.86rem;max-width:420px;margin:0 auto 18px;">
+          Adjust the structural, area, zoning, and condition specifications on the left and click <strong>Run AI Valuation</strong> to compute instant INR/USD estimates, 10-tree dispersion ranges, and factor attribution.
+        </p>
+        <button type="button" id="quickSampleBtn" class="btn btn-secondary btn-sm">Run Quick Sample Valuation</button>
+      </div>
+
+      <div id="activeResultState" style="display:none;">
+        <div class="valuation-hero-box">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div class="kpi-label" style="margin-bottom:4px;">Estimated Property Value (INR)</div>
+              <div id="resInrValue" class="valuation-price mono">INR 0</div>
+              <div id="resUsdSub" class="mono" style="font-size:0.86rem;color:var(--text-secondary);margin-top:4px;"></div>
+            </div>
+            <div style="text-align:right;">
+              <span id="resAgreementBadge" class="badge badge-emerald">Tree Agreement</span>
+              <div id="resFxNote" style="font-size:0.72rem;color:var(--text-muted);margin-top:6px;"></div>
+            </div>
+          </div>
+
+          <!-- 10-Tree Empirical Spread Bar -->
+          <div style="margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-secondary);">
+              <span>10-Tree Min: <strong id="resMinInr" class="mono"></strong></span>
+              <span>IQR (25th-75th) &amp; Point Estimate</span>
+              <span>10-Tree Max: <strong id="resMaxInr" class="mono"></strong></span>
+            </div>
+            <div class="range-bar-track">
+              <div id="rangeBarIqr" class="range-bar-iqr" style="left:20%;width:50%;"></div>
+              <div id="rangeBarPoint" class="range-bar-marker" style="left:50%;"></div>
+            </div>
+            <div id="resUncertaintyNote" style="font-size:0.75rem;color:var(--text-secondary);"></div>
+          </div>
+        </div>
+
+        <!-- Secondary Valuation KPIs -->
+        <div class="grid grid-3" style="gap:12px;margin-bottom:18px;">
+          <div style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:12px;padding:12px;">
+            <div class="kpi-label">Price / Sq Ft (Lot)</div>
+            <div id="resPpsfLot" class="mono" style="font-size:1.05rem;font-weight:700;margin-top:4px;">-</div>
+          </div>
+          <div style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:12px;padding:12px;">
+            <div class="kpi-label">Dataset Percentile</div>
+            <div id="resPercentile" class="mono" style="font-size:1.05rem;font-weight:700;margin-top:4px;">-</div>
+          </div>
+          <div style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:12px;padding:12px;">
+            <div class="kpi-label">Tree Dispersion (CV)</div>
+            <div id="resCv" class="mono" style="font-size:1.05rem;font-weight:700;margin-top:4px;">-</div>
+          </div>
+        </div>
+
+        <!-- Action Bar (Every button wired to real backend endpoint) -->
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+          <a id="downloadPdfBtn" href="#" class="btn btn-primary btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Download PDF Report
+          </a>
+          {% if current_user.is_authenticated %}
+          <button type="button" id="savePropertyBtn" class="btn btn-secondary btn-sm">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>
+            Save to Portfolio
+          </button>
+          {% else %}
+          <a href="{{ url_for('auth.login', next='/predict') }}" class="btn btn-secondary btn-sm">Sign in to Save</a>
+          {% endif %}
+          <a href="{{ url_for('properties.compare_page') }}" class="btn btn-secondary btn-sm">Compare Properties</a>
+          <a href="{{ url_for('chatbot.assistant_page') }}" class="btn btn-secondary btn-sm">Ask AI to Explain</a>
+        </div>
+
+        <!-- Charts: Factor Drivers + 10-Tree Distribution -->
+        <div class="grid grid-2" style="gap:16px;">
+          <div>
+            <h4 style="margin:0 0 8px;font-size:0.86rem;">Counterfactual Feature Impacts (INR)</h4>
+            <div class="chart-box" style="height:240px;"><canvas id="factorsChart"></canvas></div>
+          </div>
+          <div>
+            <h4 style="margin:0 0 8px;font-size:0.86rem;">10-Tree Ensemble Distribution (INR)</h4>
+            <div class="chart-box" style="height:240px;"><canvas id="treesChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="disclaimer-box" style="margin-top:16px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          <div>
+            Verified Model Metrics: <strong>MAPE {{ schema.validation_metrics.mape_pct }}%</strong> |
+            MAE ${{ "{:,.0f}".format(schema.validation_metrics.mae_usd or 30750) }} |
+            RMSE ${{ "{:,.0f}".format(schema.validation_metrics.rmse_usd or 44609) }} |
+            Range shown is the empirical min/max across all 10 Random Forest decision trees — not a guaranteed appraisal.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prediction History Card -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Recent Valuation History</h3>
+          <p class="card-subtitle">Click any valuation to reload or export its PDF dossier.</p>
+        </div>
+        <span id="historyCountBadge" class="badge badge-muted mono">{{ history|length }} records</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Property</th>
+              <th>Est. Value (INR)</th>
+              <th>Specs</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            {% if history %}
+              {% for item in history %}
+              <tr data-pred-id="{{ item.id }}">
+                <td>
+                  <div style="font-weight:600;">{{ item.property_title }}</div>
+                  <div style="font-size:0.74rem;color:var(--text-muted);">{{ item.location_name or item.ms_zoning }}</div>
+                </td>
+                <td class="mono" style="font-weight:700;color:var(--accent-emerald);">{{ format_inr(item.predicted_price_inr) }}</td>
+                <td style="font-size:0.78rem;color:var(--text-secondary);">Lot {{ "{:,.0f}".format(item.lot_area or 0) }} | Built {{ item.year_built }}</td>
+                <td>
+                  <div style="display:flex;gap:6px;">
+                    <a href="/api/predictions/{{ item.id }}/report.pdf" class="btn btn-secondary btn-sm">PDF</a>
+                    <button type="button" class="btn btn-danger btn-sm delete-pred-btn" data-id="{{ item.id }}">Delete</button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr id="noHistoryRow"><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px;">No valuations recorded yet.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/prediction.js') }}?v={{ asset_version }}"></script>
+{% endblock %}

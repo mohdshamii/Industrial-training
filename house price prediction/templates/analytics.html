@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Smart Investment Analytics & Market Intelligence — EstateIQ AI{% endblock %}
+{% block header_title %}Smart Investment Analytics &amp; Dataset Insights{% endblock %}
+
+{% block content %}
+<div class="disclaimer-box" style="margin-bottom:20px;">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+  <div>
+    <strong>Calculated Scenarios vs. Market Data:</strong> The financial simulators below compute exact mathematical outcomes from your inputs — they are <strong>illustrative scenarios, not market forecasts</strong>. Historical price benchmarks at the bottom are computed directly from the project's <code class="mono">HousePricePrediction.xlsx</code> dataset (N={{ "{:,}".format(dataset_summary.labeled_sale_records) }} actual recorded sales).
+  </div>
+</div>
+
+<!-- Investment Calculator Suite -->
+<div class="card" style="margin-bottom:24px;">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Quantitative Real Estate Financial Suite</h2>
+      <p class="card-subtitle">Interactive EMI, Down Payment, Rental Yield, ROI, Affordability, Buy vs. Rent, and Appreciation Simulators.</p>
+    </div>
+    <span class="badge badge-indigo">Scenario Modeling</span>
+  </div>
+
+  <div class="tab-bar" id="calcTabBar">
+    <button type="button" class="tab-btn active" data-tab="emi">EMI &amp; Down Payment</button>
+    <button type="button" class="tab-btn" data-tab="yield">Rental Yield</button>
+    <button type="button" class="tab-btn" data-tab="roi">ROI &amp; Cash-on-Cash</button>
+    <button type="button" class="tab-btn" data-tab="afford">Loan Affordability</button>
+    <button type="button" class="tab-btn" data-tab="bvr">Buy vs. Rent</button>
+    <button type="button" class="tab-btn" data-tab="appreciation">Appreciation Simulator</button>
+  </div>
+
+  <!-- TAB 1: EMI -->
+  <div class="calc-pane" id="pane-emi">
+    <div class="grid grid-sidebar-split">
+      <form id="emiForm" class="form-grid">
+        <div class="form-group full"><label class="form-label">Property Price (INR)</label><input type="number" name="property_price" class="form-control mono" value="15000000" min="100000" step="100000" /></div>
+        <div class="form-group"><label class="form-label">Down Payment (%)</label><input type="number" name="down_payment_pct" class="form-control mono" value="20" min="0" max="90" step="1" /></div>
+        <div class="form-group"><label class="form-label">Stamp Duty &amp; Reg (%)</label><input type="number" name="stamp_duty_pct" class="form-control mono" value="6" min="0" max="15" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Interest Rate (% p.a.)</label><input type="number" name="annual_interest_rate" class="form-control mono" value="8.5" min="1" max="20" step="0.1" /></div>
+        <div class="form-group"><label class="form-label">Loan Tenure (Years)</label><input type="number" name="tenure_years" class="form-control mono" value="20" min="1" max="35" step="1" /></div>
+        <div class="form-group full"><button type="submit" class="btn btn-primary">Calculate EMI &amp; Schedule</button></div>
+      </form>
+      <div>
+        <div class="grid grid-3" style="gap:10px;margin-bottom:14px;" id="emiKpis"></div>
+        <div class="chart-box" style="height:240px;"><canvas id="emiChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: RENTAL YIELD -->
+  <div class="calc-pane" id="pane-yield" style="display:none;">
+    <div class="grid grid-sidebar-split">
+      <form id="yieldForm" class="form-grid">
+        <div class="form-group full"><label class="form-label">Property Price (INR)</label><input type="number" name="property_price" class="form-control mono" value="15000000" min="100000" step="100000" /></div>
+        <div class="form-group"><label class="form-label">Monthly Rent (INR)</label><input type="number" name="monthly_rent" class="form-control mono" value="45000" min="1000" step="1000" /></div>
+        <div class="form-group"><label class="form-label">Vacancy Rate (%)</label><input type="number" name="vacancy_rate_pct" class="form-control mono" value="5" min="0" max="40" step="1" /></div>
+        <div class="form-group"><label class="form-label">Annual Maintenance (INR)</label><input type="number" name="annual_maintenance" class="form-control mono" value="42000" min="0" step="1000" /></div>
+        <div class="form-group"><label class="form-label">Annual Property Tax (INR)</label><input type="number" name="annual_property_tax" class="form-control mono" value="15000" min="0" step="1000" /></div>
+        <div class="form-group full"><button type="submit" class="btn btn-primary">Calculate Rental Yield</button></div>
+      </form>
+      <div>
+        <div class="grid grid-3" style="gap:10px;margin-bottom:14px;" id="yieldKpis"></div>
+        <div class="chart-box" style="height:240px;"><canvas id="yieldChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: ROI -->
+  <div class="calc-pane" id="pane-roi" style="display:none;">
+    <div class="grid grid-sidebar-split">
+      <form id="roiForm" class="form-grid">
+        <div class="form-group"><label class="form-label">Property Price (INR)</label><input type="number" name="property_price" class="form-control mono" value="15000000" step="100000" /></div>
+        <div class="form-group"><label class="form-label">Monthly Rent (INR)</label><input type="number" name="monthly_rent" class="form-control mono" value="45000" step="1000" /></div>
+        <div class="form-group"><label class="form-label">Down Payment (%)</label><input type="number" name="down_payment_pct" class="form-control mono" value="20" /></div>
+        <div class="form-group"><label class="form-label">Holding Horizon (Yrs)</label><input type="number" name="holding_years" class="form-control mono" value="7" min="1" max="30" /></div>
+        <div class="form-group"><label class="form-label">Scenario Appreciation (%/yr)</label><input type="number" name="annual_appreciation_pct" class="form-control mono" value="6.5" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Loan Interest (%/yr)</label><input type="number" name="annual_interest_rate" class="form-control mono" value="8.5" step="0.1" /></div>
+        <div class="form-group full"><button type="submit" class="btn btn-primary">Simulate Leveraged ROI</button></div>
+      </form>
+      <div>
+        <div class="grid grid-2" style="gap:12px;" id="roiKpis"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: AFFORDABILITY -->
+  <div class="calc-pane" id="pane-afford" style="display:none;">
+    <div class="grid grid-sidebar-split">
+      <form id="affordForm" class="form-grid">
+        <div class="form-group"><label class="form-label">Net Monthly Income (INR)</label><input type="number" name="monthly_income" class="form-control mono" value="250000" step="10000" /></div>
+        <div class="form-group"><label class="form-label">Existing Monthly EMIs (INR)</label><input type="number" name="existing_monthly_emis" class="form-control mono" value="15000" step="2000" /></div>
+        <div class="form-group"><label class="form-label">Available Down Payment (INR)</label><input type="number" name="available_down_payment" class="form-control mono" value="3000000" step="100000" /></div>
+        <div class="form-group"><label class="form-label">Max FOIR (%)</label><input type="number" name="max_foir_pct" class="form-control mono" value="45" min="20" max="60" /></div>
+        <div class="form-group"><label class="form-label">Interest Rate (% p.a.)</label><input type="number" name="annual_interest_rate" class="form-control mono" value="8.5" step="0.1" /></div>
+        <div class="form-group"><label class="form-label">Tenure (Years)</label><input type="number" name="tenure_years" class="form-control mono" value="20" min="5" max="30" /></div>
+        <div class="form-group full"><button type="submit" class="btn btn-primary">Check Loan Eligibility</button></div>
+      </form>
+      <div class="grid grid-2" style="gap:12px;" id="affordKpis"></div>
+    </div>
+  </div>
+
+  <!-- TAB 5: BUY VS RENT -->
+  <div class="calc-pane" id="pane-bvr" style="display:none;">
+    <div class="grid grid-sidebar-split">
+      <form id="bvrForm" class="form-grid">
+        <div class="form-group"><label class="form-label">Property Price (INR)</label><input type="number" name="property_price" class="form-control mono" value="15000000" step="100000" /></div>
+        <div class="form-group"><label class="form-label">Monthly Rent (INR)</label><input type="number" name="monthly_rent" class="form-control mono" value="42000" step="1000" /></div>
+        <div class="form-group"><label class="form-label">Property Appreciation (%/yr)</label><input type="number" name="annual_appreciation_pct" class="form-control mono" value="6.5" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Alt. Investment Return (%/yr)</label><input type="number" name="investment_return_pct" class="form-control mono" value="10.0" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Rent Escalation (%/yr)</label><input type="number" name="annual_rent_increase_pct" class="form-control mono" value="5.0" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Horizon (Years)</label><input type="number" name="horizon_years" class="form-control mono" value="15" min="3" max="30" /></div>
+        <div class="form-group full"><button type="submit" class="btn btn-primary">Simulate Buy vs. Rent</button></div>
+      </form>
+      <div>
+        <div id="bvrBanner" class="alert alert-info" style="margin-bottom:12px;"></div>
+        <div class="chart-box" style="height:250px;"><canvas id="bvrChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 6: APPRECIATION SIMULATOR -->
+  <div class="calc-pane" id="pane-appreciation" style="display:none;">
+    <div class="grid grid-sidebar-split">
+      <form id="appForm" class="form-grid">
+        <div class="form-group full"><label class="form-label">Starting Property Value (INR)</label><input type="number" name="current_value" class="form-control mono" value="15000000" step="100000" /></div>
+        <div class="form-group"><label class="form-label">Horizon (Years)</label><input type="number" name="horizon_years" class="form-control mono" value="10" min="1" max="30" /></div>
+        <div class="form-group"><label class="form-label">Conservative Rate (%)</label><input type="number" name="conservative_pct" class="form-control mono" value="4.0" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Moderate Rate (%)</label><input type="number" name="moderate_pct" class="form-control mono" value="7.0" step="0.5" /></div>
+        <div class="form-group"><label class="form-label">Optimistic Rate (%)</label><input type="number" name="optimistic_pct" class="form-control mono" value="10.5" step="0.5" /></div>
+        <div class="form-group full"><button type="submit" class="btn btn-primary">Run Appreciation Scenarios</button></div>
+      </form>
+      <div>
+        <div class="grid grid-3" style="gap:10px;margin-bottom:14px;" id="appKpis"></div>
+        <div class="chart-box" style="height:240px;"><canvas id="appChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Historical Training Dataset Market Intelligence -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <h2 class="card-title">Historical Training Dataset Benchmarks</h2>
+      <p class="card-subtitle">{{ dataset_summary.data_source_disclaimer }}</p>
+    </div>
+    <span class="badge badge-emerald mono">N = {{ "{:,}".format(dataset_summary.labeled_sale_records) }} Sales</span>
+  </div>
+
+  <div class="grid grid-2" style="gap:20px;">
+    <div>
+      <h4 style="margin:0 0 8px;font-size:0.86rem;">Historical Sale Price Distribution (USD)</h4>
+      <div class="chart-box"><canvas id="dsHistChart"></canvas></div>
+    </div>
+    <div>
+      <h4 style="margin:0 0 8px;font-size:0.86rem;">Median Sale Price by Construction Decade (INR)</h4>
+      <div class="chart-box"><canvas id="dsDecadeChart"></canvas></div>
+    </div>
+    <div>
+      <h4 style="margin:0 0 8px;font-size:0.86rem;">Median Price by Building Type (INR)</h4>
+      <div class="chart-box"><canvas id="dsBldgChart"></canvas></div>
+    </div>
+    <div>
+      <h4 style="margin:0 0 8px;font-size:0.86rem;">Median Price by Zoning Class (INR)</h4>
+      <div class="chart-box"><canvas id="dsZoneChart"></canvas></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/analytics.js') }}?v={{ asset_version }}"></script>
+{% endblock %}

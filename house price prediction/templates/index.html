@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% block title %}EstateIQ AI — Smart Real Estate Intelligence Platform{% endblock %}
+{% block header_title %}Platform Overview{% endblock %}
+
+{% block content %}
+<!-- Flagship Asymmetric Split Hero with LIVE Interactive ML Estimator -->
+<section class="hero-split">
+  <div class="reveal visible">
+    <span class="hero-eyebrow">
+      <span class="status-dot"></span>
+      Live ML Valuation &middot; Open Geospatial Intelligence
+    </span>
+
+    <h1 class="hero-display">
+      Intelligence That Moves <span class="gradient-text">Real Estate.</span>
+    </h1>
+
+    <p class="hero-lead">
+      Value properties in seconds using your preserved scikit-learn RandomForest model, map real-world schools, metro, hospitals &amp; weather via OpenStreetMap, simulate 20-year investment scenarios, and export boardroom-ready PDF dossiers.
+    </p>
+
+    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
+      <a href="{{ url_for('prediction.predict_page') }}" class="btn btn-primary btn-lg">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Open Full Valuation Studio
+      </a>
+      <a href="{{ url_for('properties.map_page') }}" class="btn btn-secondary btn-lg">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+        Explore Location Radar
+      </a>
+      {% if not current_user.is_authenticated %}
+      <a href="{{ url_for('auth.register') }}" class="btn btn-gold btn-lg">Start Free Account</a>
+      {% else %}
+      <a href="{{ url_for('dashboard.user_dashboard') }}" class="btn btn-gold btn-lg">My Command Dashboard</a>
+      {% endif %}
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:24px;padding-top:18px;border-top:1px solid var(--border-subtle);">
+      <div>
+        <div class="mono" style="font-size:1.25rem;font-weight:800;color:var(--color-gold);">{{ validation_metrics.mape_pct }}%</div>
+        <div style="font-size:0.74rem;color:var(--text-muted);">Audited Model MAPE</div>
+      </div>
+      <div>
+        <div class="mono" style="font-size:1.25rem;font-weight:800;">{{ "{:,}".format(dataset_summary.labeled_sale_records) }}</div>
+        <div style="font-size:0.74rem;color:var(--text-muted);">Recorded Dataset Sales</div>
+      </div>
+      <div>
+        <div class="mono" style="font-size:1.25rem;font-weight:800;color:var(--color-blue-bright);">8 Categories</div>
+        <div style="font-size:0.74rem;color:var(--text-muted);">Live OSM Amenity Radar</div>
+      </div>
+      <div>
+        <div class="mono" style="font-size:1.25rem;font-weight:800;">Zero Key</div>
+        <div style="font-size:0.74rem;color:var(--text-muted);">Free Public APIs Built-In</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: LIVE Interactive Quick Valuation Simulator (Real /api/predict!) -->
+  <div class="hero-widget reveal visible reveal-d1">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div>
+        <span class="badge badge-gold">Live ML Sandbox</span>
+        <h2 style="margin:6px 0 0;font-size:1.08rem;font-weight:800;">Instant Property Estimator</h2>
+      </div>
+      <span class="badge badge-blue mono">10 Trees Live</span>
+    </div>
+
+    <div style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:14px;padding:16px;margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px;">
+        <span class="kpi-label">Live Model Valuation</span>
+        <span id="heroSimRange" class="mono" style="font-size:0.73rem;color:var(--text-muted);">10-Tree Spread: Calculating...</span>
+      </div>
+      <div id="heroSimPrice" class="hero-widget-price mono" style="margin-top:4px;">{{ median_inr_formatted }}</div>
+      <div id="heroSimSub" class="mono" style="font-size:0.78rem;color:var(--text-secondary);margin-top:4px;">Drag sliders below for instant ML inference</div>
+      <div class="range-bar-track" style="margin:12px 0 4px;">
+        <div id="heroRangeIqr" class="range-bar-iqr" style="left:22%;width:52%;"></div>
+        <div id="heroRangePt" class="range-bar-marker" style="left:50%;"></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+      <div>
+        <div class="form-label"><span>Total Basement Footprint</span><strong id="lblHeroBsmt" class="mono" style="color:var(--color-gold);">1,200 sq ft</strong></div>
+        <input id="simBsmt" type="range" class="form-range" min="0" max="3200" step="50" value="1200" />
+      </div>
+      <div>
+        <div class="form-label"><span>Lot Area</span><strong id="lblHeroLot" class="mono" style="color:var(--color-gold);">9,500 sq ft</strong></div>
+        <input id="simLot" type="range" class="form-range" min="2000" max="35000" step="500" value="9500" />
+      </div>
+      <div class="grid grid-2" style="gap:10px;">
+        <div>
+          <div class="form-label"><span>Year Built</span><strong id="lblHeroYear" class="mono">2006</strong></div>
+          <input id="simYear" type="range" class="form-range" min="1920" max="2025" step="1" value="2006" />
+        </div>
+        <div>
+          <div class="form-label"><span>Condition</span><strong id="lblHeroCond" class="mono">7 / 9</strong></div>
+          <input id="simCond" type="range" class="form-range" min="1" max="9" step="1" value="7" />
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;">
+      <button type="button" id="heroRunSimBtn" class="btn btn-primary" style="flex:1;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Calculate Live Price
+      </button>
+      <a id="heroSimPdfLink" href="{{ url_for('prediction.predict_page') }}" class="btn btn-secondary">Full Studio</a>
+    </div>
+  </div>
+</section>
+
+<!-- Infinite Luxury Telemetry Marquee -->
+<div class="marquee-wrap" aria-label="Platform Capabilities Ticker">
+  <div class="marquee-track">
+    {% for _ in range(2) %}
+    <span class="marquee-item"><span class="status-dot"></span> <strong>PRESERVED ML MODEL:</strong> RandomForestRegressor (10 Trees &middot; 37 Encoded Features)</span>
+    <span class="marquee-item"><span class="status-dot"></span> <strong>AUDITED ACCURACY:</strong> 18.50% Validation MAPE (80/20 Split)</span>
+    <span class="marquee-item"><span class="status-dot"></span> <strong>LIVE FX RATE:</strong> 1 USD = {{ "%.2f"|format(fx.rate) }} INR ({{ fx.source }})</span>
+    <span class="marquee-item"><span class="status-dot"></span> <strong>GEOSPATIAL RADAR:</strong> OpenStreetMap Nominatim + Overpass 8-Category POI Scan</span>
+    <span class="marquee-item"><span class="status-dot"></span> <strong>LIVE WEATHER:</strong> Open-Meteo Telemetry &amp; 3-Day Forecast</span>
+    <span class="marquee-item"><span class="status-dot"></span> <strong>EXECUTIVE REPORTS:</strong> One-Click ReportLab Vector PDF Dossiers</span>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Animated Count-Up KPI Strip -->
+<section class="grid grid-4 reveal" style="margin-bottom:44px;">
+  <div class="kpi-card lift-card">
+    <div class="kpi-top">
+      <span class="kpi-label">Random Forest Ensemble</span>
+      <span class="kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect></svg></span>
+    </div>
+    <div class="kpi-value mono"><span data-countup="{{ validation_metrics.n_estimators }}">10</span> Trees</div>
+    <div class="kpi-meta">{{ validation_metrics.encoded_features }} encoded features &middot; 11 native inputs</div>
+  </div>
+
+  <div class="kpi-card lift-card">
+    <div class="kpi-top">
+      <span class="kpi-label">Audited Validation MAPE</span>
+      <span class="kpi-icon indigo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="m19 9-5 5-4-4-3 3"></path></svg></span>
+    </div>
+    <div class="kpi-value mono" style="color:var(--color-gold);"><span data-countup="{{ validation_metrics.mape_pct }}" data-decimals="2" data-suffix="%">18.50%</span></div>
+    <div class="kpi-meta">MAE ${{ "{:,.0f}".format(validation_metrics.mae_usd or 30750) }} &middot; Zero fabricated metrics</div>
+  </div>
+
+  <div class="kpi-card lift-card">
+    <div class="kpi-top">
+      <span class="kpi-label">Historical Dataset Median</span>
+      <span class="kpi-icon amber"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14a9 3 0 0 0 18 0V5"></path></svg></span>
+    </div>
+    <div class="kpi-value mono">{{ median_inr_formatted }}</div>
+    <div class="kpi-meta">${{ "{:,.0f}".format(dataset_summary.median_usd) }} USD across {{ "{:,}".format(dataset_summary.labeled_sale_records) }} sales</div>
+  </div>
+
+  <div class="kpi-card lift-card">
+    <div class="kpi-top">
+      <span class="kpi-label">Valuations Generated</span>
+      <span class="kpi-icon indigo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span>
+    </div>
+    <div class="kpi-value mono"><span data-countup="{{ total_predictions }}">{{ total_predictions }}</span></div>
+    <div class="kpi-meta">Stored securely with PDF export</div>
+  </div>
+</section>
+
+<!-- Asymmetric Luxury Bento Grid Showcase -->
+<section class="reveal" style="margin-bottom:48px;">
+  <div class="section-head">
+    <div>
+      <div class="section-kicker">Complete Real Estate OS</div>
+      <h2 class="section-title">Six Integrated Intelligence Engines</h2>
+    </div>
+    <a href="{{ url_for('prediction.predict_page') }}" class="btn btn-secondary btn-sm">Explore All Tools</a>
+  </div>
+
+  <div class="bento-grid">
+    <!-- Featured Large Bento 1: AI Valuation Studio -->
+    <a href="{{ url_for('prediction.predict_page') }}" class="card lift-card bento-span-7" style="display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:260px;">
+        <span class="badge badge-gold" style="margin-bottom:12px;">Core ML Engine</span>
+        <h3 style="margin:0 0 8px;font-size:1.3rem;font-weight:800;">AI House Price Valuation Studio</h3>
+        <p style="margin:0 0 16px;font-size:0.87rem;color:var(--text-secondary);">
+          Precision inference with all 11 preserved features, empirical 10-tree dispersion bands, counterfactual feature impact charts, Nominatim location tagging, and downloadable ReportLab PDF dossiers.
+        </p>
+        <span style="font-size:0.82rem;font-weight:700;color:var(--color-gold);display:inline-flex;align-items:center;gap:6px;">
+          Launch Valuation Studio
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </span>
+      </div>
+      <div style="background:var(--bg-surface-2);border:1px solid var(--border-subtle);border-radius:16px;padding:18px 22px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+        <div class="mini-bars" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+        <span class="mono" style="font-size:0.72rem;color:var(--color-gold);">10-Tree Spread + Drivers</span>
+      </div>
+    </a>
+
+    <!-- Featured Bento 2: Location Intelligence Radar -->
+    <a href="{{ url_for('properties.map_page') }}" class="card lift-card bento-span-5" style="display:flex;justify-content:space-between;align-items:center;gap:18px;">
+      <div style="flex:1;">
+        <span class="badge badge-blue" style="margin-bottom:12px;">Geospatial Telemetry</span>
+        <h3 style="margin:0 0 8px;font-size:1.22rem;font-weight:800;">Location Radar Map</h3>
+        <p style="margin:0 0 14px;font-size:0.85rem;color:var(--text-secondary);">
+          Live OpenStreetMap Overpass scanning for schools, hospitals, metro, rail, malls, restaurants, parks, airports &amp; Open-Meteo weather.
+        </p>
+        <span style="font-size:0.82rem;font-weight:700;color:var(--color-blue-bright);display:inline-flex;align-items:center;gap:6px;">
+          Open Live Map
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+        </span>
+      </div>
+      <div class="radar-visual" aria-hidden="true">
+        <span class="radar-ring"></span>
+        <span class="radar-ring"></span>
+        <span class="radar-ring"></span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--color-gold)" stroke="#ffffff" stroke-width="1.5" style="position:relative;z-index:2;"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3" fill="#040508"></circle></svg>
+      </div>
+    </a>
+
+    <!-- Bento 3: 4-Property Comparison -->
+    <a href="{{ url_for('properties.compare_page') }}" class="card lift-card bento-span-4">
+      <div class="kpi-icon indigo" style="margin-bottom:14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"></path><path d="M8 21H3v-5"></path><path d="M21 3l-7 7"></path><path d="M3 21l7-7"></path></svg></div>
+      <h3 style="margin:0 0 8px;font-size:1.08rem;font-weight:800;">4-Property Comparison</h3>
+      <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Benchmark up to 4 homes simultaneously with price/sq ft analysis, monthly EMI, rental yield, and multi-axis suitability radar charts.</p>
+    </a>
+
+    <!-- Bento 4: Investment Suite -->
+    <a href="{{ url_for('analytics.analytics_page') }}" class="card lift-card bento-span-4">
+      <div class="kpi-icon" style="margin-bottom:14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg></div>
+      <h3 style="margin:0 0 8px;font-size:1.08rem;font-weight:800;">Smart Investment Suite</h3>
+      <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">EMI amortization, Gross/Net Rental Yield, ROI, FOIR Loan Affordability, Buy vs. Rent wealth curves, and 30-year Appreciation Simulators.</p>
+    </a>
+
+    <!-- Bento 5: AI Property Advisor -->
+    <a href="{{ url_for('chatbot.assistant_page') }}" class="card lift-card bento-span-4">
+      <div class="kpi-icon indigo" style="margin-bottom:14px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
+      <h3 style="margin:0 0 8px;font-size:1.08rem;font-weight:800;">AI Real Estate Advisor</h3>
+      <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Zero-key free public AI + quantitative local fallback engine answering fair-value checks, buy-vs-rent math, and prediction explanations.</p>
+    </a>
+  </div>
+</section>
+
+<!-- 3-Step Executive Intelligence Pipeline -->
+<section class="reveal" style="margin-bottom:36px;">
+  <div class="section-head">
+    <div>
+      <div class="section-kicker">End-to-End Methodology</div>
+      <h2 class="section-title">How EstateIQ Delivers Transparent Valuation</h2>
+    </div>
+  </div>
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="mono" style="font-size:0.78rem;font-weight:800;color:var(--color-gold);margin-bottom:10px;">STEP 01 // FEATURE CAPTURE</div>
+      <h3 style="margin:0 0 8px;font-size:1.05rem;">11 Authentic Property Signals</h3>
+      <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Validated structural, basement, lot, age, condition, zoning, and exterior inputs mapped cleanly through your preserved <code class="mono">onehot_encoder.pkl</code>.</p>
+    </div>
+    <div class="card">
+      <div class="mono" style="font-size:0.78rem;font-weight:800;color:var(--color-blue-bright);margin-bottom:10px;">STEP 02 // ENSEMBLE + LIVE APIS</div>
+      <h3 style="margin:0 0 8px;font-size:1.05rem;">10-Tree Spread &amp; Live Enrichment</h3>
+      <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Computes point valuation, 10-tree IQR &amp; CV dispersion, counterfactual feature deltas, live USD-to-INR conversion, and Overpass nearby POIs.</p>
+    </div>
+    <div class="card">
+      <div class="mono" style="font-size:0.78rem;font-weight:800;color:var(--color-gold);margin-bottom:10px;">STEP 03 // EXECUTIVE DECISION</div>
+      <h3 style="margin:0 0 8px;font-size:1.05rem;">Portfolio, Comparison &amp; PDF</h3>
+      <p style="margin:0;font-size:0.84rem;color:var(--text-secondary);">Save to your portfolio, benchmark up to 4 homes side-by-side, stress-test EMI &amp; Buy-vs-Rent curves, and export a ReportLab PDF dossier.</p>
+    </div>
+  </div>
+</section>
+
+<div class="disclaimer-box reveal">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-gold)" stroke-width="2" style="flex-shrink:0;margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+  <div>
+    <strong>Statistical Integrity Guarantee:</strong> EstateIQ AI preserves your original <code class="mono">best_house_price_model.pkl</code> trained on historical USD sales from <code class="mono">HousePricePrediction.xlsx</code> (audited validation MAPE: {{ validation_metrics.mape_pct }}%). INR valuations use live public FX rates, ensemble spreads reflect real 10-tree variance, and all financial calculators are clearly distinguished as scenario simulations.
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+  const bsmt = document.getElementById("simBsmt");
+  const lot = document.getElementById("simLot");
+  const yr = document.getElementById("simYear");
+  const cond = document.getElementById("simCond");
+  const runBtn = document.getElementById("heroRunSimBtn");
+  if (!runBtn) return;
+
+  function syncLabels() {
+    document.getElementById("lblHeroBsmt").textContent = `${Number(bsmt.value).toLocaleString()} sq ft`;
+    document.getElementById("lblHeroLot").textContent = `${Number(lot.value).toLocaleString()} sq ft`;
+    document.getElementById("lblHeroYear").textContent = yr.value;
+    document.getElementById("lblHeroCond").textContent = `${cond.value} / 9`;
+  }
+  [bsmt, lot, yr, cond].forEach((el) => el.addEventListener("input", syncLabels));
+
+  async function runHeroEstimate(previewOnly = false) {
+    runBtn.disabled = true;
+    if (!previewOnly) runBtn.innerHTML = '<span class="spinner"></span> Predicting...';
+    try {
+      const res = await EstateIQ.apiFetch("/api/predict", {
+        method: "POST",
+        body: JSON.stringify({
+          preview: previewOnly,
+          property_title: `Quick Sandbox (${yr.value})`,
+          MSSubClass: 60,
+          LotArea: Number(lot.value),
+          TotalBsmtSF: Number(bsmt.value),
+          BsmtFinSF2: 0,
+          YearBuilt: Number(yr.value),
+          YearRemodAdd: Math.max(1950, Number(yr.value)),
+          OverallCond: Number(cond.value),
+          BldgType: "1Fam",
+          MSZoning: "RL",
+          LotConfig: "Inside",
+          Exterior1st: "VinylSd",
+        }),
+      });
+      const u = res.ensemble_uncertainty;
+      document.getElementById("heroSimPrice").textContent = EstateIQ.formatINR(res.predicted_price_inr, false);
+      document.getElementById("heroSimSub").textContent = `${EstateIQ.formatINR(res.predicted_price_inr, true)}  |  ${EstateIQ.formatUSD(res.predicted_price_usd)} (${u.agreement_tier})`;
+      document.getElementById("heroSimRange").textContent = `10-Tree Spread: ${EstateIQ.formatINR(u.min_inr, true)} - ${EstateIQ.formatINR(u.max_inr, true)}`;
+      const span = Math.max(u.max_inr - u.min_inr, 1);
+      const p25 = ((u.p25_inr - u.min_inr) / span) * 100;
+      const p75 = ((u.p75_inr - u.min_inr) / span) * 100;
+      const pt = ((res.predicted_price_inr - u.min_inr) / span) * 100;
+      document.getElementById("heroRangeIqr").style.left = `${Math.max(0, p25)}%`;
+      document.getElementById("heroRangeIqr").style.width = `${Math.max(5, p75 - p25)}%`;
+      document.getElementById("heroRangePt").style.left = `${Math.min(97, Math.max(3, pt))}%`;
+
+      const pdfBtn = document.getElementById("heroSimPdfLink");
+      if (!previewOnly && res.id) {
+        pdfBtn.href = res.report_url;
+        pdfBtn.textContent = "Export PDF";
+        EstateIQ.showToast("Live valuation saved — ready to export PDF.", "success");
+      }
+    } catch (err) {
+      if (!previewOnly) EstateIQ.showToast(err.message, "error");
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> Calculate Live Price';
+    }
+  }
+
+  // Auto-populate live ML estimate on page load without polluting DB history
+  let sliderTimer = null;
+  [bsmt, lot, yr, cond].forEach((el) => {
+    el.addEventListener("change", () => {
+      clearTimeout(sliderTimer);
+      sliderTimer = setTimeout(() => runHeroEstimate(true), 120);
+    });
+  });
+  runBtn.addEventListener("click", () => runHeroEstimate(false));
+  runHeroEstimate(true);
+})();
+</script>
+{% endblock %}

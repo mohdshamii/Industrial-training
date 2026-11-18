@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Create Account — EstateIQ AI{% endblock %}
+{% block header_title %}Create Account{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="card">
+    <div style="margin-bottom:20px;">
+      <span class="badge badge-indigo" style="margin-bottom:8px;">Free Platform Account</span>
+      <h1 style="margin:6px 0 4px;font-size:1.45rem;font-weight:800;">Get started with EstateIQ AI</h1>
+      <p class="card-subtitle">Save property valuations, compare up to 4 homes, and export executive PDFs.</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" style="display:flex;flex-direction:column;gap:14px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      <div class="form-group">
+        <label class="form-label" for="full_name">Full Name</label>
+        <input id="full_name" name="full_name" type="text" class="form-control" placeholder="Aarav Sharma" required minlength="2" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="email">Work or Personal Email</label>
+        <input id="email" name="email" type="email" class="form-control" placeholder="aarav@example.com" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="default_city">Primary Target City</label>
+        <input id="default_city" name="default_city" type="text" class="form-control" value="Bengaluru, India" placeholder="e.g. Mumbai, Pune, Bengaluru" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password (min 8 chars)</label>
+        <input id="password" name="password" type="password" class="form-control" placeholder="Create a strong password" required minlength="8" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="confirm_password">Confirm Password</label>
+        <input id="confirm_password" name="confirm_password" type="password" class="form-control" placeholder="Re-enter password" required minlength="8" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg" style="width:100%;margin-top:4px;">Create Free Account</button>
+    </form>
+
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border-subtle);text-align:center;font-size:0.84rem;color:var(--text-secondary);">
+      Already registered? <a href="{{ url_for('auth.login') }}" style="color:var(--accent-emerald);font-weight:600;">Sign in</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
