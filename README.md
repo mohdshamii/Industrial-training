@@ -164,7 +164,7 @@ As I continue learning, I plan to enhance these projects by:
 
 I am Mohd Shami, a passionate student exploring the fields of data science, machine learning, and web development. This repository represents my dedication to learning and my ability to apply theoretical concepts to practical projects. I am constantly seeking to improve my skills and take on new challenges.
 
-GitHub: https://github.com/codexshami
+GitHub: https://github.com/mohdshamii
 
 ## ACKNOWLEDGMENTS
 
